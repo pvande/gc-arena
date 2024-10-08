@@ -1,0 +1,8 @@
+build/
+demo/native/
+include/
+logs/
+tmp/
+
+dragonruby
+font.ttf
