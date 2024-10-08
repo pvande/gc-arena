@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         runner:
-          - macos-12
-          # - ubuntu-22.04
-          # - windows-2022
+          - macos-15
+          - ubuntu-22.04
+          - windows-2022
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     defaults:
@@ -30,12 +30,21 @@ jobs:
           license_tier: pro
       - name: Windows Build Config
         if: matrix.runner == 'windows-2022'
-        run: echo "MINGW_DIR=/C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64" >> $GITHUB_ENV
+        run: |
+          echo "MINGW_DIR=/c/mingw64" >> $GITHUB_ENV
+          echo "CC=gcc" >> $GITHUB_ENV
+      # - name: Start SSH Debugging session
+      #   uses: luchihoratiu/debug-via-ssh@main
+      #   with:
+      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      #     SSH_PASS: ${{ secrets.SSH_PASS }}
       - name: Run tests
         run: make test
+      - name: Run tests
+        run: make production
       - name: Platform Name
         run: echo "platform=$(ls $TESTGAME_DIR/native)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.LIBNAME }}-${{ env.platform }}
-          path: ${{ env.TESTGAME_DIR }}/native/**/*
+          name: ${{ env.LIBNAME }}-${{ runner.os }}
+          path: build/native/**/*

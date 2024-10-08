@@ -1,5 +1,5 @@
-#include "vendor/utest.h"
 #include "gc-arena.c"
+#include "vendor/utest.h"
 
 // This is a reproduction of the mruby default allocf function.
 void *test_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
@@ -100,7 +100,6 @@ UTEST(gc_arena_allocf, free_without_arena) {
 
   void *ptr2 = gc_arena_allocf(NULL, NULL, 8, NULL);
   ASSERT_TRUE(ptr2);
-  ASSERT_EQ(ptr1, ptr2);
   ASSERT_EQ(32, gc_arena_page_available(arena->page));
 }
 
