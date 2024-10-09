@@ -7,7 +7,7 @@ LEVEL_OBJECTS = WORLD_DIM * WORLD_DIM * 11
 
 $gtk.dlopen("gc-arena")
 
-LEVEL_ARENA = GC::Arena.allocate(12 * 1024 * 1024, 10 * 1024 * 1024 * 1024)
+LEVEL_ARENA = GC::Arena.allocate(LEVEL_OBJECTS, 10 * 1024 * 1024 * 1024)
 LEVEL_CHUNKS = LEVEL_ARENA.eval do
   WORLD_DIM.times.map do |x|
     WORLD_DIM.times.map do |y|
