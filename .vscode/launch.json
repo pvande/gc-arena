@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Demo",
+      "program": "./dragonruby",
+      "args": "demo",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Demo",
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Tests",
+      "program": "./build/bin/tests",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Tests",
+    },
+  ]
+}
