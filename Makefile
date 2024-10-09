@@ -47,7 +47,8 @@ build-tests: create-dirs
 	$(CC) $(DEBUG_FLAGS) $(CFLAGS) ${EXEC_CFLAGS} -o build/bin/tests${EXEC_EXTENSION} tests.c
 
 create-dirs:
-	mkdir -p build/{bin,$(DYLIB_PATH)}
+	mkdir -p build/bin
+	mkdir -p build/$(DYLIB_PATH)
 
 clean:
 	rm -fr build/
