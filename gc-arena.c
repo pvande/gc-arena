@@ -251,6 +251,7 @@ mrb_value gc_arena_allocated_m(mrb_state *mrb, mrb_value self) {
 
 void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   api = drb;
+  if (fallback_allocf) return;
 
   fallback_allocf = mrb->allocf;
   mrb->allocf = gc_arena_allocf;
