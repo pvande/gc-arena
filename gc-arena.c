@@ -192,6 +192,10 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
 
 // @TODO Support keyword arguments for: total_bytes, object_count, extra_bytes.
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
+  if (is_arena(mrb->allocf_ud)) {
+    api->mrb_raise(mrb, api->mrb_class_get(mrb, "RuntimeError"), "Nested Arenas are not supported.");
+  }
+
   mrb_int object_count = 0;
   mrb_int extra_bytes = 0;
   api->mrb_get_args(mrb, "i|i", &object_count, &extra_bytes);
