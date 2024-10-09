@@ -11,9 +11,6 @@ Opt-in manual memory management for DragonRuby.
 > details; this tool is not so kind. Please take time to understand how to use
 > this tool first.
 
-## Recommended Reading
-* [mruby's Garbage Collector]
-
 ## Why This Exists
 Garbage collection is a wonderful feature of many programming languages,
 including Ruby, that allows you to foucs on the the logical transformation of
