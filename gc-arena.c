@@ -45,8 +45,11 @@ static uint8_t gc_arena_count = 0;
 static struct gc_arena gc_arenas[MAX_ARENAS] = {0};
 static mrb_allocf fallback_allocf;
 
+#define arena_ptr(ptr) (struct gc_arena *)(ptr)
+#define is_arena(ptr) (arena_ptr(ptr) >= &gc_arenas[0] && arena_ptr(ptr) < &gc_arenas[MAX_ARENAS])
+
 static inline struct gc_arena_page *is_in_arena(struct gc_arena *arena, void *ptr) {
-  if (!arena || ptr < arena->beg || ptr >= arena->end) return NULL;
+  if (!is_arena(arena) || ptr < arena->beg || ptr >= arena->end) return NULL;
   struct gc_arena_page *page = arena->page;
   struct gc_arena_page *next;
   do {
@@ -89,36 +92,35 @@ void *_gc_arena_alloc(struct gc_arena *arena, size_t size) {
   return page->last;
 }
 
-// @TODO Figure out how to locate the appropriate allocf for non-arena `ud`.
 void *gc_arena_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
-  if (!ud && (!size || !ptr)) return fallback_allocf(mrb, ptr, size, ud);
-
-  struct gc_arena *arena = ud;
+  if (!is_arena(ud) && (!size || !ptr)) return fallback_allocf(mrb, ptr, size, ud);
 
   // Handle free() calls.
   if (size == 0) return NULL;
 
   // Handle malloc() calls.
-  if (ptr == NULL) return _gc_arena_alloc(arena, size);
+  if (ptr == NULL) return _gc_arena_alloc(ud, size);
 
   // Handle realloc() calls.
-  struct gc_arena_page *source = is_in_arena(arena, ptr);
-  if (!source) {
+  struct gc_arena *arena = ud;
+  struct gc_arena_page *page = is_in_arena(arena, ptr);
+  if (!page) {
     arena = NULL;
     for (int idx = 0; idx < gc_arena_count; idx++) {
-      source = is_in_arena(&gc_arenas[idx], ptr);
-      if (!source) continue;
-      arena = &gc_arenas[idx];
-      break;
+      page = is_in_arena(&gc_arenas[idx], ptr);
+      if (page) {
+        arena = &gc_arenas[idx];
+        break;
+      }
     }
   }
 
   if (!arena) return fallback_allocf(mrb, ptr, size, ud);
 
   // Extend the pointer if there's enough space remaining on that page.
-  if (ptr == source->last && ptr + size <= source->end) {
+  if (ptr == page->last && ptr + size <= page->end) {
     ((uint64_t *)ptr)[-1] = size;
-    source->ptr = ptr + size + (8 - size & 7) % 8;
+    page->ptr = ptr + size + (8 - size & 7) % 8;
     return ptr;
   }
 
