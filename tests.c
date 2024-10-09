@@ -13,8 +13,17 @@ void *test_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
 static mrb_allocf fallback_allocf = test_allocf;
 
 UTEST(gc_alloc, initialization) {
-  struct gc_arena *arena = gc_arena_allocate(NULL, 100, 0);
+  struct gc_arena *arena = gc_arena_allocate(NULL, 2, 0);
   ASSERT_TRUE(arena);
+
+  struct RCptr *ptr1 = (void *)arena->gc.free_heaps->freelist;
+  ASSERT_TRUE(ptr1);
+
+  struct RCptr *ptr2 = ptr1->p;
+  ASSERT_TRUE(ptr2);
+
+  struct RCptr *ptr3 = ptr2->p;
+  ASSERT_FALSE(ptr3);
 }
 
 UTEST(_gc_arena_alloc, basic_alloc) {
