@@ -40,9 +40,9 @@ jobs:
       #     SSH_PASS: ${{ secrets.SSH_PASS }}
       - name: Run tests
         run: make test
-      - name: Run tests
-        run: make production
-      - name: Platform Name
+      - name: Build
+        run: make build-production
+      - name: Export Platform Name
         run: echo "platform=$(ls $TESTGAME_DIR/native)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
