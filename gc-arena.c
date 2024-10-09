@@ -158,12 +158,13 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
 
   // Initialize our heap page.
   *heap = (struct mrb_heap_page){.freelist = (void *)heap->objects};
-  ObjectSlot *slot = (ObjectSlot *)heap->objects + object_count - 1;
-  slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE};
-  while (slot >= (ObjectSlot *)heap->objects) {
+  ObjectSlot *slot = (ObjectSlot *)heap->objects;
+  ObjectSlot *end = (ObjectSlot *)heap->objects + object_count - 1;
+  while (slot < end) {
     slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE, .p = slot + 1};
-    slot--;
+    slot++;
   }
+  slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE};
 
   // Initialize our arena.
   struct gc_arena *arena = &gc_arenas[gc_arena_count];
