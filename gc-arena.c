@@ -131,6 +131,18 @@ void *gc_arena_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
   return dest;
 }
 
+static void *gc_arena_initialize_heap(struct mrb_heap_page *heap, size_t count) {
+  ObjectSlot *slot = (ObjectSlot *)heap->objects;
+  ObjectSlot *prev = NULL;
+
+  while (count--) {
+    slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE, .p = prev};
+    prev = slot++;
+  }
+
+  return prev;
+}
+
 struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t extra_bytes) {
   // @NOTE We're allocating a single chunk of memory to house the arena and all
   //       the anticipated data. This isn't strictly necessary — we could make
@@ -157,14 +169,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   page->ptr = ptr;
 
   // Initialize our heap page.
-  *heap = (struct mrb_heap_page){.freelist = (void *)heap->objects};
-  ObjectSlot *slot = (ObjectSlot *)heap->objects;
-  ObjectSlot *end = (ObjectSlot *)heap->objects + object_count - 1;
-  while (slot < end) {
-    slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE, .p = slot + 1};
-    slot++;
-  }
-  slot->as.ptr = (struct RCptr){.tt = MRB_TT_FREE};
+  heap->freelist = gc_arena_initialize_heap(heap, object_count);
 
   // Initialize our arena.
   struct gc_arena *arena = &gc_arenas[gc_arena_count];
