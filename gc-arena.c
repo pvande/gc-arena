@@ -195,17 +195,25 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
   return page->end - page->ptr;
 }
 
-// @TODO Support keyword arguments for: total_bytes, object_count, extra_bytes.
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
     api->mrb_raise(mrb, api->mrb_class_get(mrb, "RuntimeError"), "Nested Arenas are not supported.");
   }
 
-  mrb_int object_count = 0;
-  mrb_int extra_bytes = 0;
-  api->mrb_get_args(mrb, "i|i", &object_count, &extra_bytes);
+  mrb_value values[2];
+  const mrb_kwargs kwargs = {
+    .num = 2,
+    .required = 1,
+    .table = (const mrb_sym[2]){
+      api->mrb_intern_static(mrb, "objects", 7),
+      api->mrb_intern_static(mrb, "extra", 5),
+    },
+    .values = values,
+  };
+  api->mrb_get_args(mrb, ":", &kwargs);
+  if (mrb_undef_p(values[1])) values[1] = mrb_fixnum_value(0);
 
-  struct gc_arena *arena = gc_arena_allocate(mrb, object_count, extra_bytes);
+  struct gc_arena *arena = gc_arena_allocate(mrb, mrb_fixnum(values[0]), mrb_fixnum(values[1]));
 
   struct RData *obj = api->mrb_data_object_alloc(mrb, mrb_class_ptr(cls), arena, &gc_arena_data_type);
   return mrb_obj_value(obj);

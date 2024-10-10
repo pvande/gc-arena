@@ -65,8 +65,8 @@ end
 # Create a new Arena.
 # Parameters allow you to specify how many object slots and how much additional
 # memory should be preallocated to this arena, which can help reduce runtime
-# allocation costs.
-arena = GC::Arena.allocate(1000)
+# allocation costs. (Additional memory is measured in bytes.)
+arena = GC::Arena.allocate(objects: 1024, memory: 1024)
 
 # Objects created outside the Arena are subject to normal garbage collection.
 var = Garbage.new
@@ -107,7 +107,7 @@ variables "suddenly" having unexpected new values, or application crashes.
 > ``` ruby
 > def make_object
 >   # @NOTE This arena will be freed when this function returns.
->   arena = GC::Arena.allocate(1)
+>   arena = GC::Arena.allocate(objects: 1)
 >   arena.eval { Object.new }
 > end
 >
@@ -117,7 +117,7 @@ variables "suddenly" having unexpected new values, or application crashes.
 > :white_check_mark: Correct:
 >
 > ``` ruby
-> $arena = GC::Arena.allocate(1)
+> $arena = GC::Arena.allocate(objects: 1)
 >
 > def make_object
 >   $arena.eval { Object.new }
@@ -145,12 +145,12 @@ collector, they cannot form a "live reference" for the GC.
 > :no_entry_sign: Incorrect:
 >
 > ``` ruby
-> $arena = GC::Arena.allocate(1)
+> $arena = GC::Arena.allocate(objects: 1)
 > list = $arena.eval { [] }
 >
 > begin
 >   # @NOTE This arena will be freed when this block ends.
->   $temp = GC::Arena.allocate(1)
+>   $temp = GC::Arena.allocate(objects: 1)
 >   list << $temp.eval { Object.new }
 > end
 >
@@ -160,7 +160,7 @@ collector, they cannot form a "live reference" for the GC.
 > :no_entry_sign: Incorrect:
 >
 > ``` ruby
-> $arena = GC::Arena.allocate(1)
+> $arena = GC::Arena.allocate(objects: 1)
 > list = $arena.eval { [] }
 >
 > def add_point(list)
@@ -174,7 +174,7 @@ collector, they cannot form a "live reference" for the GC.
 > :white_check_mark: Correct:
 >
 > ``` ruby
-> $arena = GC::Arena.allocate(1)
+> $arena = GC::Arena.allocate(objects: 1)
 > list = $arena.eval { [] }
 >
 > def add_point(list)
@@ -203,7 +203,7 @@ process terminates.
 > :no_entry_sign: Incorrect:
 >
 > ``` ruby
-> $arena = GC::Arena.allocate(1)
+> $arena = GC::Arena.allocate(objects: 1)
 > $arena.eval do
 >   # @ERROR `$stream` will never be properly cleaned up.
 >   $stream = IO.popen("curl https://example.com/streaming-data-source")
