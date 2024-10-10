@@ -15,7 +15,7 @@ else ifneq ($(findstring mingw, $(SYS)),)
     CFLAGS+=--sysroot=$(MINGW_DIR) -fuse-ld=lld
     EXEC_CFLAGS=-mconsole
     EXEC_EXTENSION=.exe
-    DYLIB_PATH=/native/windows-amd64
+    DYLIB_PATH=native/windows-amd64
     DYLIB_EXTENSION=.dll
 else ifneq ($(findstring cygwin, $(SYS)),)
     # Do Cygwin things
