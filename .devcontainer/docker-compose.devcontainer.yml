@@ -1,0 +1,14 @@
+services:
+  linux:
+    image: mcr.microsoft.com/devcontainers/base:jammy
+    working_dir: /source
+    volumes:
+      - ../:/source
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    stdin_open: true
+    tty: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+      - apparmor=unconfined
