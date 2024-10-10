@@ -26,7 +26,7 @@ else ifneq ($(findstring darwin, $(SYS)),)
     DYLIB_EXTENSION=.dylib
 endif
 
-build: build-test build-debug build-production
+build: build-tests build-debug build-production
 
 test: build-tests
 	./build/bin/tests${EXEC_EXTENSION}
