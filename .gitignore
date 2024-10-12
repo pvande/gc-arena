@@ -1,3 +1,5 @@
+.devcontainer/Gemfile.lock
+.yardoc/db
 build/
 demo/native/
 include/

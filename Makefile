@@ -28,6 +28,9 @@ endif
 
 build: build-tests build-debug build-production
 
+docs: src/$(CEXT_NAME).c
+	yard doc --yardopts .yardoc/yardopts
+
 test: build-tests
 	./build/bin/tests${EXEC_EXTENSION}
 

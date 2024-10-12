@@ -1,6 +1,6 @@
 services:
   linux:
-    image: mcr.microsoft.com/devcontainers/base:jammy
+    image: mcr.microsoft.com/devcontainers/ruby:3.3-bookworm
     working_dir: /source
     volumes:
       - ../:/source

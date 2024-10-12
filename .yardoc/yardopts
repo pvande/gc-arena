@@ -1,0 +1,7 @@
+--markup markdown
+--db .yardoc/db
+--output-dir docs
+--exclude tests
+--exclude include
+
+src/gc-*.c

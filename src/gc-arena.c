@@ -210,6 +210,22 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
 
 #pragma region Ruby Interface
 
+/*
+ * Document-class: GC::Arena
+ *
+ * Arena-style memory management in Ruby.
+ */
+
+/*
+ * Document-method: GC::Arena.allocate
+ *
+ * Allocates a new `GC::Arena`, reserving a pool of memory for objects and their
+ * backing data.
+ *
+ * @overload allocate(objects:, extra: 0)
+ *   @param objects [Integer] The number of objects to allocate space for.
+ *   @param extra [Integer] Additional bytes of storage to allocate.
+ */
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
     api->mrb_raise(mrb, api->mrb_class_get(mrb, "RuntimeError"), "Nested Arenas are not supported.");
@@ -234,6 +250,21 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   return mrb_obj_value(obj);
 }
 
+/*
+ * Document-method: GC::Arena#eval
+ *
+ * @todo Implement exception handling.
+ *
+ * Substitutes this Arena in place of the current object pool and allocator,
+ * forcing object creation within the given block to occur within this Arena.
+ *
+ * * Nested calls to `GC:::Arena#eval` should function as expected.
+ * * Allocations performed by C extensions will also utilize this Arena if they
+ *   perform allocations using the mruby provided APIs.
+ *
+ * @yield Nothing.
+ * @return The block's result.
+ */
 mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
   mrb_value block;
@@ -290,4 +321,13 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
   api->mrb_define_method(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
   api->mrb_define_method(mrb, Arena, "allocated", gc_arena_allocated_m, MRB_ARGS_REQ(1));
+
+#if false
+  // This pseudo-code exists to document the Ruby API for YARD.
+  GC = rb_define_module("GC");
+  Arena = rb_define_class_under(GC, "Arena", rb_cObject);
+
+  rb_define_singleton_method(Arena, "allocate", gc_arena_allocate_cm, -1);
+  rb_define_method(Arena, "eval", gc_arena_eval_m, 0);
+#endif
 }

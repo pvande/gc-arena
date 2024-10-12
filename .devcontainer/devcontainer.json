@@ -4,8 +4,12 @@
 	"service": "linux",
 	"workspaceFolder": "/source",
 	"features": {
-		"ghcr.io/devcontainers-community/features/llvm:3": {}
+		"ghcr.io/devcontainers-community/features/llvm:3": {},
+		"ghcr.io/devcontainers/features/ruby:1": {
+			"version": "latest"
+		}
 	},
+	"onCreateCommand": "BUNDLE_GEMFILE=.devcontainer/Gemfile bundle install",
 	"customizations": {
 		"vscode": {
 			"extensions": [
