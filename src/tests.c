@@ -1,5 +1,5 @@
 #include "gc-arena.c"
-#include "vendor/utest.h"
+#include "../vendor/utest.h"
 
 // This is a reproduction of the mruby default allocf function.
 void *test_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
@@ -26,20 +26,20 @@ UTEST(gc_alloc, initialization) {
   ASSERT_FALSE(ptr3);
 }
 
-UTEST(_gc_arena_alloc, basic_alloc) {
+UTEST(alloc_with_arena, basic_alloc) {
   struct gc_arena *arena = gc_arena_allocate(NULL, 0, 32);
 
-  void *ptr = _gc_arena_alloc(arena, 8);
+  void *ptr = alloc_with_arena(arena, 8);
   ASSERT_TRUE(ptr);
 }
 
-UTEST(_gc_arena_alloc, multiple_allocations_in_single_page) {
+UTEST(alloc_with_arena, multiple_allocations_in_single_page) {
   struct gc_arena *arena = gc_arena_allocate(NULL, 0, 32);
 
-  void *ptr1 = _gc_arena_alloc(arena, 8);
+  void *ptr1 = alloc_with_arena(arena, 8);
   ASSERT_TRUE(ptr1);
 
-  void *ptr2 = _gc_arena_alloc(arena, 8);
+  void *ptr2 = alloc_with_arena(arena, 8);
   ASSERT_TRUE(ptr2);
 
   ASSERT_EQ(0, gc_arena_page_available(arena->page));
@@ -47,27 +47,27 @@ UTEST(_gc_arena_alloc, multiple_allocations_in_single_page) {
   ASSERT_EQ(16, ptr2 - ptr1);
 }
 
-UTEST(_gc_arena_alloc, unaligned_allocations) {
+UTEST(alloc_with_arena, unaligned_allocations) {
   struct gc_arena *arena = gc_arena_allocate(NULL, 0, 32);
 
-  void *ptr1 = _gc_arena_alloc(arena, 2);
+  void *ptr1 = alloc_with_arena(arena, 2);
   ASSERT_TRUE(ptr1);
 
-  void *ptr2 = _gc_arena_alloc(arena, 2);
+  void *ptr2 = alloc_with_arena(arena, 2);
   ASSERT_TRUE(ptr2);
 
   ASSERT_EQ(16, ptr2 - ptr1);
 }
 
-UTEST(_gc_arena_alloc, multiple_allocations_on_multiple_pages) {
+UTEST(alloc_with_arena, multiple_allocations_on_multiple_pages) {
   struct gc_arena *arena = gc_arena_allocate(NULL, 0, 32);
 
-  void *ptr1 = _gc_arena_alloc(arena, 16);
+  void *ptr1 = alloc_with_arena(arena, 16);
   ASSERT_TRUE(ptr1);
 
   ASSERT_EQ(8, gc_arena_page_available(arena->page));
 
-  void *ptr2 = _gc_arena_alloc(arena, 16);
+  void *ptr2 = alloc_with_arena(arena, 16);
   ASSERT_TRUE(ptr2);
 
   ASSERT_NE(24, ptr2 - ptr1);

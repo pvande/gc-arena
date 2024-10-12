@@ -1,11 +1,11 @@
 #include "dragonruby.h"
 
-struct drb_api_t *api;
-
 #define MAX_ARENAS 64
 
 // Skipped during GC traversal.
 #define GC_RED 7
+
+#pragma region Structs
 
 typedef struct {
   union {
@@ -28,6 +28,26 @@ struct gc_arena {
   struct gc_arena_page *page;
 };
 
+#pragma endregion
+
+#pragma region Data
+
+struct drb_api_t *api;
+
+static void gc_arena_free(mrb_state *mrb, void *ptr);
+const mrb_data_type gc_arena_data_type = {"Arena", gc_arena_free};
+
+static uint8_t gc_arena_count = 0;
+static struct gc_arena gc_arenas[MAX_ARENAS] = {0};
+static mrb_allocf fallback_allocf;
+
+#define arena_ptr(ptr) (struct gc_arena *)(ptr)
+#define is_arena(ptr) (arena_ptr(ptr) >= &gc_arenas[0] && arena_ptr(ptr) < &gc_arenas[MAX_ARENAS])
+
+#pragma endregion
+
+#pragma region Implementation
+
 static void gc_arena_free(mrb_state *mrb, void *ptr) {
   struct gc_arena *arena = ptr;
   struct gc_arena_page *page = arena->page;
@@ -38,15 +58,6 @@ static void gc_arena_free(mrb_state *mrb, void *ptr) {
     free(page);
   } while ((page = next));
 }
-
-const mrb_data_type gc_arena_data_type = {"Arena", gc_arena_free};
-
-static uint8_t gc_arena_count = 0;
-static struct gc_arena gc_arenas[MAX_ARENAS] = {0};
-static mrb_allocf fallback_allocf;
-
-#define arena_ptr(ptr) (struct gc_arena *)(ptr)
-#define is_arena(ptr) (arena_ptr(ptr) >= &gc_arenas[0] && arena_ptr(ptr) < &gc_arenas[MAX_ARENAS])
 
 static inline struct gc_arena_page *is_in_arena(struct gc_arena *arena, void *ptr) {
   if (!is_arena(arena) || ptr < arena->beg || ptr >= arena->end) return NULL;
@@ -76,7 +87,7 @@ static inline void *add_page(struct gc_arena *arena, size_t size) {
   return new;
 }
 
-void *_gc_arena_alloc(struct gc_arena *arena, size_t size) {
+void *alloc_with_arena(struct gc_arena *arena, size_t size) {
   struct gc_arena_page *page = arena->page;
   size_t tagged_size = size + sizeof(uint64_t) + (8 - size & 7) % 8;
 
@@ -99,7 +110,7 @@ void *gc_arena_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
   if (size == 0) return NULL;
 
   // Handle malloc() calls.
-  if (ptr == NULL) return _gc_arena_alloc(ud, size);
+  if (ptr == NULL) return alloc_with_arena(ud, size);
 
   // Handle realloc() calls.
   struct gc_arena *arena = ud;
@@ -125,7 +136,7 @@ void *gc_arena_allocf(struct mrb_state *mrb, void *ptr, size_t size, void *ud) {
   }
 
   // Step 3: Allocate a new page and copy over the data.
-  void *dest = _gc_arena_alloc(arena, size);
+  void *dest = alloc_with_arena(arena, size);
   size_t original_size = ((uint64_t *)ptr)[-1];
   memcpy(dest, ptr, size > original_size ? original_size : size);
   return dest;
@@ -195,6 +206,10 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
   return page->end - page->ptr;
 }
 
+#pragma endregion
+
+#pragma region Ruby Interface
+
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
     api->mrb_raise(mrb, api->mrb_class_get(mrb, "RuntimeError"), "Nested Arenas are not supported.");
@@ -219,7 +234,6 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   return mrb_obj_value(obj);
 }
 
-// @TODO This needs error handling!
 mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
   mrb_value block;
@@ -273,7 +287,7 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   MRB_SET_INSTANCE_TT(Arena, MRB_TT_DATA);
 
   api->mrb_undef_class_method(mrb, Arena, "new");
-  api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_REQ(1));
+  api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
   api->mrb_define_method(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
   api->mrb_define_method(mrb, Arena, "allocated", gc_arena_allocated_m, MRB_ARGS_REQ(1));
 }

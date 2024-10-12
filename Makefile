@@ -37,14 +37,14 @@ demo: install-demo
 install-demo: build-debug
 	cp -R build/native demo/
 
-build-debug: create-dirs
-	$(CC) $(DEBUG_FLAGS) $(CFLAGS) ${DYLIB_CFLAGS} -o build/$(DYLIB_PATH)$(CEXT_NAME)-debug$(DYLIB_EXTENSION) $(CEXT_NAME).c
+build-debug: create-dirs src/$(CEXT_NAME).c
+	$(CC) $(DEBUG_FLAGS) $(CFLAGS) ${DYLIB_CFLAGS} -o build/$(DYLIB_PATH)$(CEXT_NAME)-debug$(DYLIB_EXTENSION) src/$(CEXT_NAME).c
 
-build-production: create-dirs
-	$(CC) $(PRODUCTION_FLAGS) $(CFLAGS) ${DYLIB_CFLAGS} -o build/$(DYLIB_PATH)$(CEXT_NAME)$(DYLIB_EXTENSION) $(CEXT_NAME).c
+build-production: create-dirs src/$(CEXT_NAME).c
+	$(CC) $(PRODUCTION_FLAGS) $(CFLAGS) ${DYLIB_CFLAGS} -o build/$(DYLIB_PATH)$(CEXT_NAME)$(DYLIB_EXTENSION) src/$(CEXT_NAME).c
 
-build-tests: create-dirs
-	$(CC) $(DEBUG_FLAGS) $(CFLAGS) ${EXEC_CFLAGS} -o build/bin/tests${EXEC_EXTENSION} tests.c
+build-tests: create-dirs src/$(CEXT_NAME).c src/tests.c
+	$(CC) $(DEBUG_FLAGS) $(CFLAGS) ${EXEC_CFLAGS} -o build/bin/tests${EXEC_EXTENSION} src/tests.c
 
 create-dirs:
 	mkdir -p build/bin
