@@ -28,6 +28,13 @@ struct gc_arena {
   struct gc_arena_page *page;
 };
 
+struct gc_arena_eval_cb_data {
+  mrb_value self;
+  mrb_value block;
+  mrb_gc original_gc;
+  void *original_allocf_ud;
+};
+
 #pragma endregion
 
 #pragma region Data
@@ -202,6 +209,34 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   return arena;
 }
 
+mrb_value gc_arena_eval_body(struct mrb_state *mrb, mrb_value data_cptr) {
+  struct gc_arena_eval_cb_data *data = mrb_cptr(data_cptr);
+  struct gc_arena *arena = api->mrb_get_datatype(mrb, data->self, &gc_arena_data_type);
+
+  // Backup mrb_state props.
+  data->original_gc = mrb->gc;
+  data->original_allocf_ud = mrb->allocf_ud;
+
+  // Swap in the Arena's GC and allocator.
+  mrb->gc = arena->gc;
+  mrb->allocf_ud = arena;
+
+  // Evaluate the block.
+  return api->mrb_yield_argv(mrb, data->block, 0, NULL);
+}
+
+mrb_value gc_arena_eval_ensure(struct mrb_state *mrb, mrb_value data_cptr) {
+  struct gc_arena_eval_cb_data *data = mrb_cptr(data_cptr);
+  struct gc_arena *arena = api->mrb_get_datatype(mrb, data->self, &gc_arena_data_type);
+
+  // Restore mrb_state props.
+  arena->gc = mrb->gc;
+  mrb->gc = data->original_gc;
+  mrb->allocf_ud = data->original_allocf_ud;
+
+  return mrb_nil_value();
+}
+
 size_t gc_arena_page_available(struct gc_arena_page *page) {
   return page->end - page->ptr;
 }
@@ -253,8 +288,6 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
 /*
  * Document-method: GC::Arena#eval
  *
- * @todo Implement exception handling.
- *
  * Substitutes this Arena in place of the current object pool and allocator,
  * forcing object creation within the given block to occur within this Arena.
  *
@@ -270,23 +303,10 @@ mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
   mrb_value block;
   api->mrb_get_args(mrb, "&", &block);
 
-  // Backup mrb_state props.
-  mrb_gc original_gc = mrb->gc;
-  void *original_allocf_ud = mrb->allocf_ud;
+  struct gc_arena_eval_cb_data data = {.self = self, .block = block};
+  mrb_value data_cptr = mrb_obj_value(&(struct RCptr){.tt = MRB_TT_CPTR, .p = &data});
 
-  // Swap in the Arena's GC and allocator.
-  mrb->gc = arena->gc;
-  mrb->allocf_ud = arena;
-
-  // Evaluate the block.
-  mrb_value value = api->mrb_yield_argv(mrb, block, 0, NULL);
-
-  // Restore mrb_state props.
-  arena->gc = mrb->gc;
-  mrb->gc = original_gc;
-  mrb->allocf_ud = original_allocf_ud;
-
-  return value;
+  return api->mrb_ensure(mrb, gc_arena_eval_body, data_cptr, gc_arena_eval_ensure, data_cptr);
 }
 
 mrb_value gc_arena_allocated_m(mrb_state *mrb, mrb_value self) {
