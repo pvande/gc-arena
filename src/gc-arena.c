@@ -176,8 +176,7 @@ static void gc_arena_reset(mrb_state *mrb, struct gc_arena *arena) {
     page = next;
   }
 
-  *heap = (mrb_heap_page){0};
-  heap->freelist = gc_arena_initialize_heap(heap, arena->initial_objects);
+  *heap = (mrb_heap_page){.freelist = gc_arena_initialize_heap(heap, arena->initial_objects)};
 
   page->ptr = (void *)(heap + 1) + sizeof(ObjectSlot) * arena->initial_objects;
   arena->page = page;
@@ -211,13 +210,10 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   mrb_heap_page *heap = ptr;
   ptr += sizeof(struct mrb_heap_page) + sizeof(ObjectSlot) * object_count;
 
-  page->ptr = ptr;
-
-  // Initialize our heap page.
-  heap->freelist = gc_arena_initialize_heap(heap, object_count);
-
-  // Initialize our arena.
+  // Initialize our values.
   struct gc_arena *arena = &gc_arenas[gc_arena_count];
+  *page = (struct gc_arena_page){.ptr = ptr, .end = page->end};
+  *heap = (mrb_heap_page){.freelist = gc_arena_initialize_heap(heap, object_count)};
   *arena = (struct gc_arena){
     .gc = {
       .heaps = heap,
