@@ -23,6 +23,7 @@ struct gc_arena_page {
 
 struct gc_arena {
   mrb_gc gc;
+  size_t initial_objects;
   void *beg;
   void *end;
   struct gc_arena_page *page;
@@ -161,6 +162,32 @@ static void *gc_arena_initialize_heap(struct mrb_heap_page *heap, size_t count) 
   return prev;
 }
 
+static void gc_arena_reset(mrb_state *mrb, struct gc_arena *arena) {
+  mrb_heap_page *heap = arena->gc.heaps;
+  while (heap->next) {
+    heap = heap->next;
+  }
+
+  struct gc_arena_page *page = arena->page;
+  struct gc_arena_page *last, *next;
+  while (page->next) {
+    next = page->next;
+    free(page);
+    page = next;
+  }
+
+  *heap = (mrb_heap_page){0};
+  heap->freelist = gc_arena_initialize_heap(heap, arena->initial_objects);
+
+  page->ptr = (void *)(heap + 1) + sizeof(ObjectSlot) * arena->initial_objects;
+  arena->page = page;
+  arena->gc.arena = (void *)(page + 1);
+  arena->gc.arena_idx = 0;
+  arena->gc.sweeps = NULL;
+  arena->gc.heaps = heap;
+  arena->gc.free_heaps = heap;
+}
+
 struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t extra_bytes) {
   // @NOTE We're allocating a single chunk of memory to house the arena and all
   //       the anticipated data. This isn't strictly necessary — we could make
@@ -200,6 +227,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
       .current_white_part = GC_RED,
       .disabled = TRUE,
     },
+    .initial_objects = object_count,
     .beg = page,
     .end = page->end,
     .page = page,
@@ -309,6 +337,38 @@ mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
   return api->mrb_ensure(mrb, gc_arena_eval_body, data_cptr, gc_arena_eval_ensure, data_cptr);
 }
 
+/*
+ * Document-method: GC::Arena#reset
+ *
+ * Resets the Arena's allocator.
+ *
+ * > [!IMPORTANT]
+ * > This will invalidate references to every object in this Arena! It is your
+ * > responsibility to ensure that you no longer reference those objects.
+ *
+ * This enables scratch and periodic Arenas to quickly and quietly discard all
+ * data and prepare for further use. Manually resetting is faster than
+ * allocating a new Arena, and substantially faster than delegating to the GC.
+ *
+ * @example Scratch Storage
+ *   $scratch = Arena.new(objects: 2048)
+ *   def tick(...)
+ *     $scratch.reset
+ *     $scratch.eval do
+ *       simulate_game
+ *       render_game
+ *     end
+ *   end
+ *
+ * @return [nil]
+ */
+mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
+  struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
+
+  gc_arena_reset(mrb, arena);
+  return mrb_nil_value();
+}
+
 mrb_value gc_arena_allocated_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
   mrb_value block;
@@ -340,6 +400,7 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   api->mrb_undef_class_method(mrb, Arena, "new");
   api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
   api->mrb_define_method(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
+  api->mrb_define_method(mrb, Arena, "reset", gc_arena_reset_m, MRB_ARGS_NONE());
   api->mrb_define_method(mrb, Arena, "allocated", gc_arena_allocated_m, MRB_ARGS_REQ(1));
 
 #if false
@@ -349,5 +410,6 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
 
   rb_define_singleton_method(Arena, "allocate", gc_arena_allocate_cm, -1);
   rb_define_method(Arena, "eval", gc_arena_eval_m, 0);
+  rb_define_method(Arena, "reset", gc_arena_reset_m, 0);
 #endif
 }

@@ -268,4 +268,60 @@ UTEST(gc_arena_allocf, realloc_without_arena_will_identify_correct_arena) {
   ASSERT_EQ(0, gc_arena_page_available(arena->page));
 }
 
+UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset) {
+  struct gc_arena *arena = gc_arena_allocate(NULL, 0, 32);
+
+  void *ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(ptr1);
+  ASSERT_EQ(16, gc_arena_page_available(arena->page));
+  strcpy(ptr1, "Hello");
+
+  void *ptr2 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(ptr2);
+  ASSERT_EQ(0, gc_arena_page_available(arena->page));
+  strcpy(ptr2, "Goodbye");
+
+  gc_arena_reset(NULL, arena);
+
+  void *new_ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(new_ptr1);
+  ASSERT_EQ(ptr1, new_ptr1);
+  ASSERT_EQ(16, gc_arena_page_available(arena->page));
+  ASSERT_EQ(0, strcmp(new_ptr1, "Hello"));
+
+  void *new_ptr2 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(new_ptr2);
+  ASSERT_EQ(ptr2, new_ptr2);
+  ASSERT_EQ(0, gc_arena_page_available(arena->page));
+  ASSERT_EQ(0, strcmp(new_ptr2, "Goodbye"));
+}
+
+UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset_with_prealloc_objects) {
+  struct gc_arena *arena = gc_arena_allocate(NULL, 4, 32);
+
+  void *ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(ptr1);
+  ASSERT_EQ(16, gc_arena_page_available(arena->page));
+  strcpy(ptr1, "Hello");
+
+  void *ptr2 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(ptr2);
+  ASSERT_EQ(0, gc_arena_page_available(arena->page));
+  strcpy(ptr2, "Goodbye");
+
+  gc_arena_reset(NULL, arena);
+
+  void *new_ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(new_ptr1);
+  ASSERT_EQ(ptr1, new_ptr1);
+  ASSERT_EQ(16, gc_arena_page_available(arena->page));
+  ASSERT_EQ(0, strcmp(new_ptr1, "Hello"));
+
+  void *new_ptr2 = gc_arena_allocf(NULL, NULL, 8, arena);
+  ASSERT_TRUE(new_ptr2);
+  ASSERT_EQ(ptr2, new_ptr2);
+  ASSERT_EQ(0, gc_arena_page_available(arena->page));
+  ASSERT_EQ(0, strcmp(new_ptr2, "Goodbye"));
+}
+
 UTEST_MAIN()
