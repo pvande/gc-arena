@@ -74,6 +74,8 @@ static void gc_arena_free(mrb_state *mrb, void *ptr) {
   struct gc_arena_page *page = arena->page;
   struct gc_arena_page *next;
 
+  free(arena->gc.arena);
+
   do {
     next = page->next;
     free(page);
@@ -240,7 +242,6 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   gc_arena_size += sizeof(struct gc_arena_page);
   gc_arena_size += sizeof(struct mrb_heap_page);
   gc_arena_size += sizeof(ObjectSlot) * object_count;
-  gc_arena_size += sizeof(struct RBasic *) * MRB_GC_ARENA_SIZE;
   gc_arena_size += extra_bytes;
   void *ptr = malloc(gc_arena_size);
 
@@ -248,9 +249,6 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   struct gc_arena_page *page = ptr;
   page->end = ptr + gc_arena_size;
   ptr = page + 1;
-
-  void *mrb_gc_arena = ptr;
-  ptr += sizeof(struct RBasic *) * MRB_GC_ARENA_SIZE;
 
   mrb_heap_page *heap = ptr;
   ptr += sizeof(struct mrb_heap_page) + sizeof(ObjectSlot) * object_count;
@@ -263,7 +261,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
     .gc = {
       .heaps = heap,
       .free_heaps = heap,
-      .arena = mrb_gc_arena,
+      .arena = malloc(sizeof(struct RBasic *) * MRB_GC_ARENA_SIZE),
       .arena_capa = MRB_GC_ARENA_SIZE,
       .current_white_part = GC_RED,
       .disabled = TRUE,
