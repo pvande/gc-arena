@@ -417,6 +417,7 @@ mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
  * object/memory consumption).
  *
  * The returned hash has the following keys:
+ *
  * * `pages`
  *   * This indicates the number of memory pages that have been allocated since
  *     the Arena was created. Numbers greater than `1` indicate that usage has
