@@ -234,7 +234,7 @@ static void gc_arena_reset(mrb_state *mrb, struct gc_arena *arena) {
   arena->gc.free_heaps = heap;
 }
 
-struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t extra_bytes) {
+struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t storage_bytes) {
   // @NOTE We're allocating a single chunk of memory to house the arena and all
   //       the anticipated data. This isn't strictly necessary — we could make
   //       separate allocations — but it simplifies cleanup later.
@@ -242,7 +242,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
   gc_arena_size += sizeof(struct gc_arena_page);
   gc_arena_size += sizeof(struct mrb_heap_page);
   gc_arena_size += sizeof(ObjectSlot) * object_count;
-  gc_arena_size += extra_bytes;
+  gc_arena_size += storage_bytes;
   void *ptr = malloc(gc_arena_size);
 
   // Portion out the allocated memory.
@@ -324,9 +324,9 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
  * Allocates a new `GC::Arena`, reserving a pool of memory for objects and their
  * backing data.
  *
- * @overload allocate(objects:, extra: 0)
+ * @overload allocate(objects:, storage: 0)
  *   @param objects [Integer] The number of objects to allocate space for.
- *   @param extra [Integer] Additional bytes of storage to allocate.
+ *   @param storage [Integer] Additional bytes of storage to allocate.
  */
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
@@ -339,7 +339,7 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
     .required = 1,
     .table = (const mrb_sym[2]){
       api->mrb_intern_static(mrb, "objects", 7),
-      api->mrb_intern_static(mrb, "extra", 5),
+      api->mrb_intern_static(mrb, "storage", 7),
     },
     .values = values,
   };
