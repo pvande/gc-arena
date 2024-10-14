@@ -419,27 +419,27 @@ mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
  * The returned hash has the following keys:
  *
  * * `pages`
- *   * This indicates the number of memory pages that have been allocated since
- *     the Arena was created. Numbers greater than `1` indicate that usage has
- *     exceeded the initialization capacity.
+ *     * This indicates the number of memory pages that have been allocated
+ *       since the Arena was created. Numbers greater than `1` indicate that
+ *       usage has exceeded the initialization capacity.
  * * `total_objects`
- *   * This represents the total number of object slots currently available.
+ *     * This represents the total number of object slots currently available.
  * * `live_objects`
- *   * This represents the number of object slots which have been filled since
- *     the Arena was created.
+ *     * This represents the number of object slots which have been filled since
+ *       the Arena was created.
  * * `free_objects`
- *   * This represents the number of unpopulated object slots.
+ *     * This represents the number of unpopulated object slots.
  * * `total_storage`
- *   * This represents the total number of bytes allocated for additional object
- *     data storage.
+ *     * This represents the total number of bytes allocated for additional
+ *       object data storage.
  * * `used_storage`
- *   * This represents the number of bytes of additional object storage
- *     currently being used.
+ *     * This represents the number of bytes of additional object storage
+ *       currently being used.
  * * `free_storage`
- *   * This represents the number of bytes allocated but as-yet unused.
- *   * Note that this number *may* be higher than expected, as data near the end
- *     of a page may be left indefinitely "free" if the next allocation is
- *     larger than the remaining available space.
+ *     * This represents the number of bytes allocated but as-yet unused.
+ *     * Note that this number *may* be higher than expected, as data near the
+ *       end of a page may be left indefinitely "free" if the next allocation is
+ *       larger than the remaining available space.
  *
  * @return [Hash] Detailed statistics about this Arena.
  */

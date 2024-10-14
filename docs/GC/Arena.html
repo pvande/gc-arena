@@ -463,34 +463,41 @@
 <p>The returned hash has the following keys:</p>
 <ul><li>
 <p><code>pages</code></p>
-</li><li>
+<ul><li>
 <p>This indicates the number of memory pages that have been allocated since the Arena was created. Numbers greater than <code>1</code> indicate that usage has exceeded the initialization capacity.</p>
+</li></ul>
 </li><li>
 <p><code>total_objects</code></p>
-</li><li>
+<ul><li>
 <p>This represents the total number of object slots currently available.</p>
+</li></ul>
 </li><li>
 <p><code>live_objects</code></p>
-</li><li>
+<ul><li>
 <p>This represents the number of object slots which have been filled since the Arena was created.</p>
+</li></ul>
 </li><li>
 <p><code>free_objects</code></p>
-</li><li>
+<ul><li>
 <p>This represents the number of unpopulated object slots.</p>
+</li></ul>
 </li><li>
 <p><code>total_storage</code></p>
-</li><li>
+<ul><li>
 <p>This represents the total number of bytes allocated for additional object data storage.</p>
+</li></ul>
 </li><li>
 <p><code>used_storage</code></p>
-</li><li>
+<ul><li>
 <p>This represents the number of bytes of additional object storage currently being used.</p>
+</li></ul>
 </li><li>
 <p><code>free_storage</code></p>
-</li><li>
+<ul><li>
 <p>This represents the number of bytes allocated but as-yet unused.</p>
 </li><li>
 <p>Note that this number <em>may</em> be higher than expected, as data near the end of a page may be left indefinitely “free” if the next allocation is larger than the remaining available space.</p>
+</li></ul>
 </li></ul>
 
 
@@ -525,7 +532,7 @@
 </div>
 
       <div id="footer">
-  Generated on Mon Oct 14 17:58:06 2024 by
+  Generated on Mon Oct 14 17:59:22 2024 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.9.37 (ruby-3.3.5).
 </div>
