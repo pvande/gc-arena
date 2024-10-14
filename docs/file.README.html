@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  File: README
+  
+    &mdash; Documentation by YARD 0.9.37
+  
+</title>
+
+  <link rel="stylesheet" href="css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "README";
+  relpath = '';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="file_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="_index.html">Index</a> &raquo; 
+    <span class="title">File: README</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><div id='filecontents'>
+<h1 id="label-gc-arena">gc-arena</h1>
+
+<p>Opt-in manual memory management for DragonRuby.</p>
+
+<blockquote>
+<p>[!CAUTION] <strong>This tool is very sharp.</strong></p>
+
+<p>mruby is built with an expectation of automatic memory management. Hidden allocations can happen in unexpected places, and these can be a source of difficult to diagnose bugs. Ruby allows you to remain ignorant about memory details; this tool is not so kind. Please take time to understand how to use this tool first.</p>
+</blockquote>
+
+<h2 id="label-Why+This+Exists">Why This Exists</h2>
+
+<p>Garbage collection is a wonderful feature of many programming languages, including Ruby, that allows you to foucs on the the logical transformation of data rather than how and where that data is stored. This tool is not without cost however, and the cost of the garbage collector provided by mruby <em>in particular</em> scales in proportion to the size of the tracked data.</p>
+
+<p>Optimization techniques like preprocessing, memoization, indexing, and caching— usually viewed as a trading memory for speed — end up being less effective because of the increased cost of garbage collection. Large volumes of completely static data end up being tested for liveness repeatedly. While changes introduced in DragonRuby 6.2 have significantly redcuced the effective cost of garbage collection, a full GC cycle can still introduce a noticeable periodic delay or a significant delay at startup.</p>
+
+<p><code>gc-arena</code> provides memory pools that the GC <em>fully ignores</em>, giving you space to store as much data as you want, at no additional cost, and to choose if and when that data should be freed. Used wisely, this can be a form of manual memory management with many of the same benefits as garbage collection, without the any of the drawbacks.</p>
+
+<h2 id="label-How+It+Works">How It Works</h2>
+
+<p>When a new <code>GC::Arena</code> is created, it allocates a pool of memory, which will be bound to that instance for its entire lifetime. <code>GC::Arena#eval</code> temporarily swaps out the object heap and allocator used by mruby to utilize the Arena’s memory pool. All newly created objects — and any other allocations, like long string storage — will live in the Arena’s pool and are flagged so that they are not traversed by the GC.</p>
+
+<h2 id="label-When+To+Use+It">When To Use It</h2>
+
+<p>Arena allocation can be a great choice when the cost of garbage collection becomes noticeable, or when the cost of memory allocation is a concern.</p>
+
+<p>Consider using an arena for: * Large data caches that live for the entire runtime of the game. * Scene data, like level geometry and objects. * Per-frame data and intermediate calculations.</p>
+
+<p>More generally, they can be useful whenever you have 1) some amount of 2) data with a known lifetime. <a href="https://www.rfleury.com/p/untangling-lifetimes-the-arena-allocator">Untangling Lifetimes</a> is a great resource for thinking about how arenas work and why they are useful, from the perspective of a C programmer.</p>
+
+<h2 id="label-How+To+Use+It">How To Use It</h2>
+
+<pre class="code ruby"><code class="ruby"><span class='comment'># Load the library.
+</span><span class='kw'>def</span> <span class='id identifier rubyid_boot'>boot</span><span class='lparen'>(</span><span class='op'>...</span><span class='rparen'>)</span>
+  <span class='gvar'>$gtk</span><span class='period'>.</span><span class='id identifier rubyid_dlopen'>dlopen</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>gc-arena</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span>
+
+<span class='comment'># Create a new Arena.
+</span><span class='comment'># Parameters allow you to specify how many object slots and how much additional
+</span><span class='comment'># memory should be preallocated to this arena, which can help reduce runtime
+</span><span class='comment'># allocation costs. (Additional memory is measured in bytes.)
+</span><span class='id identifier rubyid_arena'>arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1024</span><span class='comma'>,</span> <span class='label'>memory:</span> <span class='int'>1024</span><span class='rparen'>)</span>
+
+<span class='comment'># Objects created outside the Arena are subject to normal garbage collection.
+</span><span class='id identifier rubyid_var'>var</span> <span class='op'>=</span> <span class='const'>Garbage</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span>
+<span class='id identifier rubyid_var'>var</span> <span class='op'>=</span> <span class='kw'>nil</span> <span class='comment'># The GC will eventually reclaim the `Garbage` instance.
+</span>
+<span class='comment'># Using `Arena#eval` will temporarily swap contexts.
+</span><span class='id identifier rubyid_arena'>arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='kw'>do</span>
+  <span class='comment'># Objects created inside the Arena live within the Arena&#39;s memory pool.
+</span>  <span class='comment'># They are not subject to garbage collection.
+</span>  <span class='id identifier rubyid_var'>var</span> <span class='op'>=</span> <span class='const'>Object</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span>
+<span class='kw'>end</span>
+
+<span class='comment'># `Arena#eval` also returns the value of the last expression.
+</span><span class='id identifier rubyid_my_object'>my_object</span> <span class='op'>=</span> <span class='id identifier rubyid_arena'>arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='const'>Object</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span> <span class='rbrace'>}</span>
+
+<span class='comment'># Unlike normal, garbage collected objects, references to Arena allocated
+</span><span class='comment'># objects will become invalid (causing errors and possibly crashes) when the
+</span><span class='comment'># Arena&#39;s memory is freed. This will happen automatically when the Arena is
+</span><span class='comment'># garbage collected.
+</span><span class='id identifier rubyid_arena'>arena</span> <span class='op'>=</span> <span class='kw'>nil</span>
+</code></pre>
+
+<h2 id="label-What+Not+To+Do">What Not To Do</h2>
+
+<h3 id="label-Use+After+Free">Use After Free</h3>
+
+<blockquote>
+<p>[!IMPORTANT] Rule: <strong>Object references must not outlive their Arena.</strong></p>
+</blockquote>
+
+<p>Arenas will free their associated memory when garbage collected, or when explicitly asked to do so. This can lead to situations, unlike in typical Ruby code, where an object’s memory might be released while there are still references to that memory location. Attempting to read or write from freed memory is generally unsafe, may not fail <em>immediately</em>, and can result in variables “suddenly” having unexpected new values, or application crashes.</p>
+
+<blockquote>
+<p>:no_entry_sign: Incorrect:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='kw'>def</span> <span class='id identifier rubyid_make_object'>make_object</span>
+  <span class='comment'># @NOTE This arena will be freed when this function returns.
+</span>  <span class='id identifier rubyid_arena'>arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_arena'>arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='const'>Object</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span>
+
+<span class='id identifier rubyid_obj'>obj</span> <span class='op'>=</span> <span class='id identifier rubyid_make_object'>make_object</span> <span class='comment'># @ERROR `obj` now refers to freed memory.
+</span></code></pre>
+
+<p>:white_check_mark: Correct:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='gvar'>$arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_make_object'>make_object</span>
+  <span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='const'>Object</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span>
+
+<span class='id identifier rubyid_obj'>obj</span> <span class='op'>=</span> <span class='id identifier rubyid_make_object'>make_object</span> <span class='comment'># @NOTE `obj` refers to memory owned by `$arena`.
+</span></code></pre>
+</blockquote>
+<hr>
+
+<blockquote>
+<p>[!IMPORTANT] Rule: <strong>Arena objects must not reference objects with shorter lifetimes.</strong></p>
+</blockquote>
+
+<p>This is functionally equivalent to the previous rule, but it’s worth calling out separately. Variables are not the only object references that can become invalid— instance variables, hash keys and values, and array entries all form references that <em>could</em> become the source of a use-after-free error.</p>
+
+<p>Object references become invalid when the object is freed. For arena-allocated objects, this will happen when the owning Arena is freed; for GC-allocated objects, this will happen when the GC cannot find any live references to the object. Because Arena-allocated objects are not traversed by the garbage collector, they cannot form a “live reference” for the GC.</p>
+
+<blockquote>
+<p>:no_entry_sign: Incorrect:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='gvar'>$arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+<span class='id identifier rubyid_list'>list</span> <span class='op'>=</span> <span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='lbracket'>[</span><span class='rbracket'>]</span> <span class='rbrace'>}</span>
+
+<span class='kw'>begin</span>
+  <span class='comment'># @NOTE This arena will be freed when this block ends.
+</span>  <span class='gvar'>$temp</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_list'>list</span> <span class='op'>&lt;&lt;</span> <span class='gvar'>$temp</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='const'>Object</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span>
+
+<span class='comment'># @ERROR `list` now contains a reference to freed memory.
+</span></code></pre>
+
+<p>:no_entry_sign: Incorrect:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='gvar'>$arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+<span class='id identifier rubyid_list'>list</span> <span class='op'>=</span> <span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='lbracket'>[</span><span class='rbracket'>]</span> <span class='rbrace'>}</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_add_point'>add_point</span><span class='lparen'>(</span><span class='id identifier rubyid_list'>list</span><span class='rparen'>)</span>
+  <span class='comment'># @NOTE This hash is GC-allocated, and will be freed after this method call.
+</span>  <span class='id identifier rubyid_list'>list</span> <span class='op'>&lt;&lt;</span> <span class='lbrace'>{</span> <span class='label'>x:</span> <span class='int'>0</span><span class='comma'>,</span> <span class='label'>y:</span> <span class='int'>0</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span>
+
+<span class='id identifier rubyid_add_point'>add_point</span><span class='lparen'>(</span><span class='id identifier rubyid_list'>list</span><span class='rparen'>)</span> <span class='comment'># @ERROR `list` now contains a reference to freed memory.
+</span></code></pre>
+
+<p>:white_check_mark: Correct:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='gvar'>$arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+<span class='id identifier rubyid_list'>list</span> <span class='op'>=</span> <span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='lbracket'>[</span><span class='rbracket'>]</span> <span class='rbrace'>}</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_add_point'>add_point</span><span class='lparen'>(</span><span class='id identifier rubyid_list'>list</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_list'>list</span> <span class='op'>&lt;&lt;</span> <span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='lbrace'>{</span> <span class='lbrace'>{</span> <span class='label'>x:</span> <span class='int'>0</span><span class='comma'>,</span> <span class='label'>y:</span> <span class='int'>0</span> <span class='rbrace'>}</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span>
+
+<span class='id identifier rubyid_add_point'>add_point</span><span class='lparen'>(</span><span class='id identifier rubyid_list'>list</span><span class='rparen'>)</span> <span class='comment'># @NOTE `list` only contains references owned by `$arena`.
+</span></code></pre>
+</blockquote>
+
+<h3 id="label-Resource+Retention">Resource Retention</h3>
+
+<blockquote>
+<p>[!IMPORTANT] Rule: <strong>Objects bound to non-memory resources must live in the regular GC.</strong></p>
+</blockquote>
+
+<p>Some types of objects — particularly objects from other C extensions — will have teardown routines that are called when the object is garbage collected. Since Arena-allocated objects aren’t ever garbage collected, those routines are never run. In cases where that behavior is more involved than just freeing allocated memory, those objects should not be allocated inside an Arena, or retained by an object allocated inside an Arena.</p>
+
+<p>This will primarily be objects that act as a handle to an OS resource, like a socket or a file descriptor. Creating these inside an Arena will cause the object’s memory to be freed, but the resource will remain bound until the process terminates.</p>
+
+<blockquote>
+<p>:no_entry_sign: Incorrect:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='gvar'>$arena</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="GC.html" title="GC (module)">GC</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="GC/Arena.html" title="GC::Arena (class)">Arena</a></span></span><span class='period'>.</span><span class='id identifier rubyid_allocate'><span class='object_link'><a href="GC/Arena.html#allocate-class_method" title="GC::Arena.allocate (method)">allocate</a></span></span><span class='lparen'>(</span><span class='label'>objects:</span> <span class='int'>1</span><span class='rparen'>)</span>
+<span class='gvar'>$arena</span><span class='period'>.</span><span class='id identifier rubyid_eval'>eval</span> <span class='kw'>do</span>
+  <span class='comment'># @ERROR `$stream` will never be properly cleaned up.
+</span>  <span class='gvar'>$stream</span> <span class='op'>=</span> <span class='const'>IO</span><span class='period'>.</span><span class='id identifier rubyid_popen'>popen</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>curl https://example.com/streaming-data-source</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span>
+</code></pre>
+
+<p>:white_check_mark: Correct:</p>
+
+<pre class="code ruby"><code class="ruby"><span class='comment'># There is no correct way to reference these objects within an Arena.
+</span></code></pre>
+</blockquote>
+</div></div>
+
+      <div id="footer">
+  Generated on Mon Oct 14 17:53:03 2024 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.37 (ruby-3.3.5).
+</div>
+
+    </div>
+  </body>
+</html>
