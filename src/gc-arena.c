@@ -16,6 +16,7 @@ typedef struct {
 
 struct gc_arena_page {
   struct gc_arena_page *next;
+  void *start;
   void *last;
   void *ptr;
   void *end;
@@ -27,6 +28,18 @@ struct gc_arena {
   void *beg;
   void *end;
   struct gc_arena_page *page;
+};
+
+struct gc_arena_stats {
+  size_t pages;
+  size_t total_memory;
+  size_t used_memory;
+  size_t total_objects;
+  size_t live_objects;
+  size_t free_objects;
+  size_t total_storage;
+  size_t used_storage;
+  size_t free_storage;
 };
 
 struct gc_arena_eval_cb_data {
@@ -72,17 +85,49 @@ static inline struct gc_arena_page *is_in_arena(struct gc_arena *arena, void *pt
   struct gc_arena_page *page = arena->page;
   struct gc_arena_page *next;
   do {
-    if (ptr > (void *)page && ptr < page->end) break;
+    if (ptr >= page->start && ptr < page->end) break;
     next = page->next;
   } while ((page = next));
 
   return page;
 }
 
+static inline void gc_arena_stats(mrb_state *mrb, struct gc_arena *arena, struct gc_arena_stats *stats) {
+  *stats = (struct gc_arena_stats){
+    .total_objects = arena->gc.live,
+    .live_objects = arena->gc.live,
+  };
+
+  struct gc_arena_page *page = arena->page;
+  while (page) {
+    stats->pages += 1;
+    stats->total_storage += page->end - page->start;
+    stats->free_storage += page->end - page->ptr;
+    stats->used_storage += page->ptr - page->start;
+    page = page->next;
+  }
+
+  struct mrb_heap_page *heap = arena->gc.free_heaps;
+  while (heap) {
+    struct RCptr *ptr = (struct RCptr *)heap->freelist;
+    while (ptr) {
+      stats->total_objects++;
+      stats->free_objects++;
+      ptr = ptr->p;
+    }
+
+    heap = heap->free_next;
+  }
+
+  stats->total_storage -= sizeof(ObjectSlot) * stats->total_objects;
+  stats->used_storage -= sizeof(ObjectSlot) * stats->total_objects;
+}
+
 static inline void *add_page(struct gc_arena *arena, size_t size) {
   size_t page_size = size + sizeof(ObjectSlot) * 1024;
   struct gc_arena_page *new = malloc(sizeof(struct gc_arena_page) + page_size);
   *new = (struct gc_arena_page){
+    .start = new + 1,
     .next = arena->page,
     .ptr = new + 1,
     .end = (void *)(new + 1) + page_size,
@@ -212,7 +257,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t e
 
   // Initialize our values.
   struct gc_arena *arena = &gc_arenas[gc_arena_count];
-  *page = (struct gc_arena_page){.ptr = ptr, .end = page->end};
+  *page = (struct gc_arena_page){.start = heap + 1, .ptr = ptr, .end = page->end};
   *heap = (mrb_heap_page){.freelist = gc_arena_initialize_heap(heap, object_count)};
   *arena = (struct gc_arena){
     .gc = {
@@ -360,27 +405,64 @@ mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
  */
 mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
-
   gc_arena_reset(mrb, arena);
   return mrb_nil_value();
 }
 
-mrb_value gc_arena_allocated_m(mrb_state *mrb, mrb_value self) {
+/*
+ * Document-method: GC::Arena#stats
+ *
+ * Provides details about the utilization of this Arena. These details can be
+ * used to determine appropriate values for preallocation, by inspecting these
+ * values either after the Arena has been fully populated or periodically just
+ * before resetting the Arena (to determine a "high water mark" for
+ * object/memory consumption).
+ *
+ * The returned hash has the following keys:
+ * * `pages`
+ *   * This indicates the number of memory pages that have been allocated since
+ *     the Arena was created. Numbers greater than `1` indicate that usage has
+ *     exceeded the initialization capacity.
+ * * `total_objects`
+ *   * This represents the total number of object slots currently available.
+ * * `live_objects`
+ *   * This represents the number of object slots which have been filled since
+ *     the Arena was created.
+ * * `free_objects`
+ *   * This represents the number of unpopulated object slots.
+ * * `total_storage`
+ *   * This represents the total number of bytes allocated for additional object
+ *     data storage.
+ * * `used_storage`
+ *   * This represents the number of bytes of additional object storage
+ *     currently being used.
+ * * `free_storage`
+ *   * This represents the number of bytes allocated but as-yet unused.
+ *   * Note that this number *may* be higher than expected, as data near the end
+ *     of a page may be left indefinitely "free" if the next allocation is
+ *     larger than the remaining available space.
+ *
+ * @return [Hash] Detailed statistics about this Arena.
+ */
+mrb_value gc_arena_stats_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
-  mrb_value block;
-  api->mrb_get_args(mrb, "&", &block);
 
-  size_t total_bytes = 0;
+  // Sync GC details if the arena is currently "live".
+  if (mrb->allocf_ud == arena) arena->gc = mrb->gc;
 
-  struct gc_arena_page *page = arena->page;
-  do {
-    total_bytes += page->end - page->ptr;
-  } while ((page = page->next));
+  struct gc_arena_stats stats;
+  gc_arena_stats(mrb, arena, &stats);
 
-  size_t objects = mrb->allocf_ud == arena ? mrb->gc.live : arena->gc.live;
-  size_t object_bytes = objects * sizeof(ObjectSlot);
+  mrb_value hash = api->mrb_hash_new(mrb);
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "pages", 5)), mrb_fixnum_value(stats.pages));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "total_objects", 13)), mrb_fixnum_value(stats.total_objects));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "live_objects", 12)), mrb_fixnum_value(stats.live_objects));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "free_objects", 12)), mrb_fixnum_value(stats.free_objects));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "total_storage", 13)), mrb_fixnum_value(stats.total_storage));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "used_storage", 12)), mrb_fixnum_value(stats.used_storage));
+  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "free_storage", 12)), mrb_fixnum_value(stats.free_storage));
 
-  return mrb_fixnum_value(objects);
+  return hash;
 }
 
 void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
@@ -390,14 +472,15 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   fallback_allocf = mrb->allocf;
   mrb->allocf = gc_arena_allocf;
 
-  struct RClass *Arena = api->mrb_define_class_under(mrb, api->mrb_module_get(mrb, "GC"), "Arena", mrb->object_class);
+  struct RClass *GC = api->mrb_module_get(mrb, "GC");
+  struct RClass *Arena = api->mrb_define_class_under(mrb, GC, "Arena", mrb->object_class);
   MRB_SET_INSTANCE_TT(Arena, MRB_TT_DATA);
 
   api->mrb_undef_class_method(mrb, Arena, "new");
   api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
   api->mrb_define_method(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
   api->mrb_define_method(mrb, Arena, "reset", gc_arena_reset_m, MRB_ARGS_NONE());
-  api->mrb_define_method(mrb, Arena, "allocated", gc_arena_allocated_m, MRB_ARGS_REQ(1));
+  api->mrb_define_method(mrb, Arena, "stats", gc_arena_stats_m, MRB_ARGS_NONE());
 
 #if false
   // This pseudo-code exists to document the Ruby API for YARD.
@@ -407,5 +490,6 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   rb_define_singleton_method(Arena, "allocate", gc_arena_allocate_cm, -1);
   rb_define_method(Arena, "eval", gc_arena_eval_m, 0);
   rb_define_method(Arena, "reset", gc_arena_reset_m, 0);
+  rb_define_method(Arena, "stats", gc_arena_stats_m, 0);
 #endif
 }

@@ -296,7 +296,7 @@ UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset) {
   ASSERT_EQ(0, strcmp(new_ptr2, "Goodbye"));
 }
 
-UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset_with_prealloc_objects) {
+UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset_with_prealloc_object_count) {
   struct gc_arena *arena = gc_arena_allocate(NULL, 4, 32);
 
   void *ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
@@ -322,6 +322,66 @@ UTEST(gc_arena_reset, alloc_yields_old_pointers_after_reset_with_prealloc_object
   ASSERT_EQ(ptr2, new_ptr2);
   ASSERT_EQ(0, gc_arena_page_available(arena->page));
   ASSERT_EQ(0, strcmp(new_ptr2, "Goodbye"));
+}
+
+UTEST(gc_arena_stats, produces_basic_stats) {
+  struct gc_arena *arena = gc_arena_allocate(NULL, 8, 32);
+
+  struct gc_arena_stats stats;
+
+  gc_arena_stats(NULL, arena, &stats);
+  ASSERT_EQ(1, stats.pages);
+  ASSERT_EQ(8, stats.total_objects);
+  ASSERT_EQ(0, stats.live_objects);
+  ASSERT_EQ(8, stats.free_objects);
+  ASSERT_EQ(32, stats.total_storage);
+  ASSERT_EQ(0, stats.used_storage);
+  ASSERT_EQ(32, stats.free_storage);
+
+  arena->gc.live++;
+  arena->gc.free_heaps->freelist = ((struct RCptr *)(arena->gc.free_heaps->freelist))->p;
+
+  gc_arena_stats(NULL, arena, &stats);
+  ASSERT_EQ(1, stats.pages);
+  ASSERT_EQ(8, stats.total_objects);
+  ASSERT_EQ(1, stats.live_objects);
+  ASSERT_EQ(7, stats.free_objects);
+  ASSERT_EQ(32, stats.total_storage);
+  ASSERT_EQ(0, stats.used_storage);
+  ASSERT_EQ(32, stats.free_storage);
+
+  void *ptr1 = gc_arena_allocf(NULL, NULL, 8, arena);
+
+  gc_arena_stats(NULL, arena, &stats);
+  ASSERT_EQ(1, stats.pages);
+  ASSERT_EQ(8, stats.total_objects);
+  ASSERT_EQ(1, stats.live_objects);
+  ASSERT_EQ(7, stats.free_objects);
+  ASSERT_EQ(32, stats.total_storage);
+  ASSERT_EQ(16, stats.used_storage);
+  ASSERT_EQ(16, stats.free_storage);
+
+  void *ptr2 = gc_arena_allocf(NULL, NULL, 8, arena);
+
+  gc_arena_stats(NULL, arena, &stats);
+  ASSERT_EQ(1, stats.pages);
+  ASSERT_EQ(8, stats.total_objects);
+  ASSERT_EQ(1, stats.live_objects);
+  ASSERT_EQ(7, stats.free_objects);
+  ASSERT_EQ(32, stats.total_storage);
+  ASSERT_EQ(32, stats.used_storage);
+  ASSERT_EQ(0, stats.free_storage);
+
+  void *ptr3 = gc_arena_allocf(NULL, NULL, 8, arena);
+
+  gc_arena_stats(NULL, arena, &stats);
+  ASSERT_EQ(2, stats.pages);
+  ASSERT_EQ(8, stats.total_objects);
+  ASSERT_EQ(1, stats.live_objects);
+  ASSERT_EQ(7, stats.free_objects);
+  ASSERT_EQ(32 + 16 + (48 * 1024), stats.total_storage);
+  ASSERT_EQ(48, stats.used_storage);
+  ASSERT_EQ(48 * 1024, stats.free_storage);
 }
 
 UTEST_MAIN()
