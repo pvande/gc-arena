@@ -3,11 +3,11 @@ $gtk.disable_nil_punning!
 SCREEN_SIZE = 48
 WORLD_DIM = 1024
 
+$gtk.dlopen("gc-arena-debug")
+
 LEVEL_OBJECTS = WORLD_DIM * WORLD_DIM * 11
-
-$gtk.dlopen("gc-arena")
-
-LEVEL_ARENA = GC::Arena.allocate(LEVEL_OBJECTS, 10 * 1024 * 1024 * 1024)
+LEVEL_DATA = WORLD_DIM * WORLD_DIM * 500
+LEVEL_ARENA = GC::Arena.allocate(objects: LEVEL_OBJECTS, storage: LEVEL_DATA)
 LEVEL_CHUNKS = LEVEL_ARENA.eval do
   WORLD_DIM.times.map do |x|
     WORLD_DIM.times.map do |y|
