@@ -5,6 +5,10 @@
 // Skipped during GC traversal.
 #define GC_RED 7
 
+#ifndef MRB
+#define MRB(method) api->method
+#endif
+
 #pragma region Structs
 
 typedef struct {
@@ -278,7 +282,7 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t s
 
 mrb_value gc_arena_eval_body(struct mrb_state *mrb, mrb_value data_cptr) {
   struct gc_arena_eval_cb_data *data = mrb_cptr(data_cptr);
-  struct gc_arena *arena = api->mrb_get_datatype(mrb, data->self, &gc_arena_data_type);
+  struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, data->self, &gc_arena_data_type);
 
   // Backup mrb_state props.
   data->original_gc = mrb->gc;
@@ -289,12 +293,12 @@ mrb_value gc_arena_eval_body(struct mrb_state *mrb, mrb_value data_cptr) {
   mrb->allocf_ud = arena;
 
   // Evaluate the block.
-  return api->mrb_yield_argv(mrb, data->block, 0, NULL);
+  return MRB(mrb_yield_argv)(mrb, data->block, 0, NULL);
 }
 
 mrb_value gc_arena_eval_ensure(struct mrb_state *mrb, mrb_value data_cptr) {
   struct gc_arena_eval_cb_data *data = mrb_cptr(data_cptr);
-  struct gc_arena *arena = api->mrb_get_datatype(mrb, data->self, &gc_arena_data_type);
+  struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, data->self, &gc_arena_data_type);
 
   // Restore mrb_state props.
   arena->gc = mrb->gc;
@@ -330,7 +334,7 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
  */
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
-    api->mrb_raise(mrb, api->mrb_class_get(mrb, "RuntimeError"), "Nested Arenas are not supported.");
+    MRB(mrb_raise)(mrb, MRB(mrb_class_get)(mrb, "RuntimeError"), "Nested Arenas are not supported.");
   }
 
   mrb_value values[2];
@@ -338,17 +342,17 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
     .num = 2,
     .required = 1,
     .table = (const mrb_sym[2]){
-      api->mrb_intern_static(mrb, "objects", 7),
-      api->mrb_intern_static(mrb, "storage", 7),
+      MRB(mrb_intern_static)(mrb, "objects", 7),
+      MRB(mrb_intern_static)(mrb, "storage", 7),
     },
     .values = values,
   };
-  api->mrb_get_args(mrb, ":", &kwargs);
+  MRB(mrb_get_args)(mrb, ":", &kwargs);
   if (mrb_undef_p(values[1])) values[1] = mrb_fixnum_value(0);
 
   struct gc_arena *arena = gc_arena_allocate(mrb, mrb_fixnum(values[0]), mrb_fixnum(values[1]));
 
-  struct RData *obj = api->mrb_data_object_alloc(mrb, mrb_class_ptr(cls), arena, &gc_arena_data_type);
+  struct RData *obj = MRB(mrb_data_object_alloc)(mrb, mrb_class_ptr(cls), arena, &gc_arena_data_type);
   return mrb_obj_value(obj);
 }
 
@@ -366,14 +370,14 @@ mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
  * @return The block's result.
  */
 mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
-  struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
+  struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, self, &gc_arena_data_type);
   mrb_value block;
-  api->mrb_get_args(mrb, "&", &block);
+  MRB(mrb_get_args)(mrb, "&", &block);
 
   struct gc_arena_eval_cb_data data = {.self = self, .block = block};
   mrb_value data_cptr = mrb_obj_value(&(struct RCptr){.tt = MRB_TT_CPTR, .p = &data});
 
-  return api->mrb_ensure(mrb, gc_arena_eval_body, data_cptr, gc_arena_eval_ensure, data_cptr);
+  return MRB(mrb_ensure)(mrb, gc_arena_eval_body, data_cptr, gc_arena_eval_ensure, data_cptr);
 }
 
 /*
@@ -402,7 +406,7 @@ mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
  * @return [nil]
  */
 mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
-  struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
+  struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, self, &gc_arena_data_type);
   gc_arena_reset(mrb, arena);
   return mrb_nil_value();
 }
@@ -444,7 +448,7 @@ mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
  * @return [Hash] Detailed statistics about this Arena.
  */
 mrb_value gc_arena_stats_m(mrb_state *mrb, mrb_value self) {
-  struct gc_arena *arena = api->mrb_get_datatype(mrb, self, &gc_arena_data_type);
+  struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, self, &gc_arena_data_type);
 
   // Sync GC details if the arena is currently "live".
   if (mrb->allocf_ud == arena) arena->gc = mrb->gc;
@@ -452,14 +456,14 @@ mrb_value gc_arena_stats_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena_stats stats;
   gc_arena_stats(mrb, arena, &stats);
 
-  mrb_value hash = api->mrb_hash_new(mrb);
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "pages", 5)), mrb_fixnum_value(stats.pages));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "total_objects", 13)), mrb_fixnum_value(stats.total_objects));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "live_objects", 12)), mrb_fixnum_value(stats.live_objects));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "free_objects", 12)), mrb_fixnum_value(stats.free_objects));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "total_storage", 13)), mrb_fixnum_value(stats.total_storage));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "used_storage", 12)), mrb_fixnum_value(stats.used_storage));
-  api->mrb_hash_set(mrb, hash, mrb_symbol_value(api->mrb_intern_static(mrb, "free_storage", 12)), mrb_fixnum_value(stats.free_storage));
+  mrb_value hash = MRB(mrb_hash_new)(mrb);
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "pages", 5)), mrb_fixnum_value(stats.pages));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "total_objects", 13)), mrb_fixnum_value(stats.total_objects));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "live_objects", 12)), mrb_fixnum_value(stats.live_objects));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "free_objects", 12)), mrb_fixnum_value(stats.free_objects));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "total_storage", 13)), mrb_fixnum_value(stats.total_storage));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "used_storage", 12)), mrb_fixnum_value(stats.used_storage));
+  MRB(mrb_hash_set)(mrb, hash, mrb_symbol_value(MRB(mrb_intern_static)(mrb, "free_storage", 12)), mrb_fixnum_value(stats.free_storage));
 
   return hash;
 }
@@ -471,15 +475,15 @@ void drb_register_c_extensions_with_api(mrb_state *mrb, struct drb_api_t *drb) {
   fallback_allocf = mrb->allocf;
   mrb->allocf = gc_arena_allocf;
 
-  struct RClass *GC = api->mrb_module_get(mrb, "GC");
-  struct RClass *Arena = api->mrb_define_class_under(mrb, GC, "Arena", mrb->object_class);
+  struct RClass *GC = MRB(mrb_module_get)(mrb, "GC");
+  struct RClass *Arena = MRB(mrb_define_class_under)(mrb, GC, "Arena", mrb->object_class);
   MRB_SET_INSTANCE_TT(Arena, MRB_TT_DATA);
 
-  api->mrb_undef_class_method(mrb, Arena, "new");
-  api->mrb_define_class_method(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
-  api->mrb_define_method(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
-  api->mrb_define_method(mrb, Arena, "reset", gc_arena_reset_m, MRB_ARGS_NONE());
-  api->mrb_define_method(mrb, Arena, "stats", gc_arena_stats_m, MRB_ARGS_NONE());
+  MRB(mrb_undef_class_method)(mrb, Arena, "new");
+  MRB(mrb_define_class_method)(mrb, Arena, "allocate", gc_arena_allocate_cm, MRB_ARGS_KEY(2, 1));
+  MRB(mrb_define_method)(mrb, Arena, "eval", gc_arena_eval_m, MRB_ARGS_BLOCK());
+  MRB(mrb_define_method)(mrb, Arena, "reset", gc_arena_reset_m, MRB_ARGS_NONE());
+  MRB(mrb_define_method)(mrb, Arena, "stats", gc_arena_stats_m, MRB_ARGS_NONE());
 
 #if false
   // This pseudo-code exists to document the Ruby API for YARD.
