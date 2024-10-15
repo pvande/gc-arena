@@ -78,8 +78,6 @@ static void gc_arena_free(mrb_state *mrb, void *ptr) {
   struct gc_arena_page *page = arena->page;
   struct gc_arena_page *next;
 
-  free(arena->gc.arena);
-
   do {
     next = page->next;
     free(page);
@@ -232,7 +230,6 @@ static void gc_arena_reset(mrb_state *mrb, struct gc_arena *arena) {
   page->ptr = (void *)(heap + 1) + sizeof(ObjectSlot) * arena->initial_objects;
   arena->page = page;
   arena->gc.live = 0;
-  arena->gc.arena_idx = 0;
   arena->gc.sweeps = NULL;
   arena->gc.heaps = heap;
   arena->gc.free_heaps = heap;
@@ -265,8 +262,6 @@ struct gc_arena *gc_arena_allocate(mrb_state *mrb, size_t object_count, size_t s
     .gc = {
       .heaps = heap,
       .free_heaps = heap,
-      .arena = malloc(sizeof(struct RBasic *) * MRB_GC_ARENA_SIZE),
-      .arena_capa = MRB_GC_ARENA_SIZE,
       .current_white_part = GC_RED,
       .disabled = TRUE,
     },
@@ -290,6 +285,9 @@ mrb_value gc_arena_eval_body(struct mrb_state *mrb, mrb_value data_cptr) {
 
   // Swap in the Arena's GC and allocator.
   mrb->gc = arena->gc;
+  mrb->gc.arena = data->original_gc.arena;
+  mrb->gc.arena_idx = data->original_gc.arena_idx;
+  mrb->gc.arena_capa = data->original_gc.arena_capa;
   mrb->allocf_ud = arena;
 
   // Evaluate the block.
