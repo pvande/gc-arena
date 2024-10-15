@@ -231,6 +231,7 @@ static void gc_arena_reset(mrb_state *mrb, struct gc_arena *arena) {
 
   page->ptr = (void *)(heap + 1) + sizeof(ObjectSlot) * arena->initial_objects;
   arena->page = page;
+  arena->gc.live = 0;
   arena->gc.arena_idx = 0;
   arena->gc.sweeps = NULL;
   arena->gc.heaps = heap;
