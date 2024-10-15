@@ -407,7 +407,9 @@ mrb_value gc_arena_eval_m(mrb_state *mrb, mrb_value self) {
  */
 mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, self, &gc_arena_data_type);
+  if (mrb->allocf_ud == arena) arena->gc = mrb->gc;
   gc_arena_reset(mrb, arena);
+  if (mrb->allocf_ud == arena) mrb->gc = arena->gc;
   return mrb_nil_value();
 }
 
