@@ -1,15 +1,62 @@
+<style children="dl.not-prose { display: grid; grid: auto-flow / max-content 1fr; gap: 0.8em }" />
+<style children=".signature:not(:first-of-type) { border-top: solid thin var(--twoslash-border-color) }" />
+<style children=".prose :where(blockquote):not(:where([class~=not-prose],[class~=not-prose] *)) { font-style: normal }" />
+<style children=".prose :where(blockquote p:first-of-type):not(:where([class~=not-prose],[class~=not-prose] *))::before { content: '' }" />
+<style children=".prose :where(blockquote p:first-of-type):not(:where([class~=not-prose],[class~=not-prose] *))::after { content: '' }" />
+
+export const Callout = ({className, icon, children, ...props}) => {
+  return (
+    <div className={"relative mb-3 flex gap-4 overflow-hidden rounded-xl px-5 py-4 " + className} {...props}>
+      { !!icon && <span className="relative top-1 flex-shrink-0">{icon}</span> }
+      <span className="[&>p]:m-0">{children}</span>
+    </div>
+  );
+}
+
+export const Constant = ({children}) => {
+  [heading, signature] = children;
+  heading.props.children = signature;
+  signature.props.raw = null;
+  return (<div className="constant signature">{heading}</div>);
+}
+
+export const Type = ({name}) => (
+  <span className="not-prose">
+    <code className="font-semibold text-s bg-white/5 px-1.5 py-1 rounded-md">{name}</code>
+  </span>
+)
+
+export const Param = ({name, type, default: defaultValue, children, ...props}) => {
+  return (
+    <div {...props}>
+      <div className="flex items-center gap-2 not-prose">
+        {!!name && <code className="font-bold text-primary">{name}</code>}
+        {!!type && <Type name={type} />}
+        {!!defaultValue && <em>(defaults to: <code>{defaultValue}</code>)</em>}
+      </div>
+      {!!children && (
+        <div className="[&>:first-child]:mt-0 [&>:last-child]:mb-0 text-sm mt-3">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+<!--------->
 # gc-arena
 
 Opt-in manual memory management for DragonRuby.
 
-> [!CAUTION]
-> **This tool is very sharp.**
->
-> mruby is built with an expectation of automatic memory management. Hidden
-> allocations can happen in unexpected places, and these can be a source of
-> difficult to diagnose bugs. Ruby allows you to remain ignorant about memory
-> details; this tool is not so kind. Please take time to understand how to use
-> this tool first.
+<Error>
+  **This tool is very sharp.**
+  >
+  mruby is built with an expectation of automatic memory management. Hidden
+  allocations can happen in unexpected places, and these can be a source of
+  difficult to diagnose bugs. Ruby allows you to remain ignorant about memory
+  details; this tool is not so kind. Please take time to understand how to use
+  this tool first.
+</Error>
 
 ## Why This Exists
 Garbage collection is a wonderful feature of many programming languages,
@@ -92,8 +139,9 @@ arena = nil
 ## What Not To Do
 
 ### Use After Free
-> [!IMPORTANT]
->  Rule: **Object references must not outlive their Arena.**
+<Info>
+  Rule: **Object references must not outlive their Arena.**
+</Info>
 
 Arenas will free their associated memory when garbage collected, or when
 explicitly asked to do so. This can lead to situations, unlike in typical Ruby
@@ -128,8 +176,9 @@ variables "suddenly" having unexpected new values, or application crashes.
 
 ---
 
-> [!IMPORTANT]
->  Rule: **Arena objects must not reference objects with shorter lifetimes.**
+<Info>
+  Rule: **Arena objects must not reference objects with shorter lifetimes.**
+</Info>
 
 This is functionally equivalent to the previous rule, but it's worth calling out
 separately. Variables are not the only object references that can become invalid
@@ -185,8 +234,9 @@ collector, they cannot form a "live reference" for the GC.
 > ```
 
 ### Resource Retention
-> [!IMPORTANT]
->  Rule: **Objects bound to non-memory resources must live in the regular GC.**
+<Info>
+  Rule: **Objects bound to non-memory resources must live in the regular GC.**
+</Info>
 
 Some types of objects — particularly objects from other C extensions — will have
 teardown routines that are called when the object is garbage collected. Since

@@ -329,6 +329,7 @@ size_t gc_arena_page_available(struct gc_arena_page *page) {
  * @overload allocate(objects:, storage: 0)
  *   @param objects [Integer] The number of objects to allocate space for.
  *   @param storage [Integer] Additional bytes of storage to allocate.
+ #   @return GC::Arena
  */
 mrb_value gc_arena_allocate_cm(mrb_state *mrb, mrb_value cls) {
   if (is_arena(mrb->allocf_ud)) {
@@ -420,32 +421,29 @@ mrb_value gc_arena_reset_m(mrb_state *mrb, mrb_value self) {
  * before resetting the Arena (to determine a "high water mark" for
  * object/memory consumption).
  *
- * The returned hash has the following keys:
- *
- * * `pages`
- *     * This indicates the number of memory pages that have been allocated
- *       since the Arena was created. Numbers greater than `1` indicate that
- *       usage has exceeded the initialization capacity.
- * * `total_objects`
- *     * This represents the total number of object slots currently available.
- * * `live_objects`
- *     * This represents the number of object slots which have been filled since
- *       the Arena was created.
- * * `free_objects`
- *     * This represents the number of unpopulated object slots.
- * * `total_storage`
- *     * This represents the total number of bytes allocated for additional
- *       object data storage.
- * * `used_storage`
- *     * This represents the number of bytes of additional object storage
- *       currently being used.
- * * `free_storage`
- *     * This represents the number of bytes allocated but as-yet unused.
- *     * Note that this number *may* be higher than expected, as data near the
- *       end of a page may be left indefinitely "free" if the next allocation is
- *       larger than the remaining available space.
- *
  * @return [Hash] Detailed statistics about this Arena.
+ *   * `pages`
+ *       * This indicates the number of memory pages that have been allocated
+ *         since the Arena was created. Numbers greater than `1` indicate that
+ *         usage has exceeded the initialization capacity.
+ *   * `total_objects`
+ *       * This represents the total number of object slots currently available.
+ *   * `live_objects`
+ *       * This represents the number of object slots which have been filled since
+ *         the Arena was created.
+ *   * `free_objects`
+ *       * This represents the number of unpopulated object slots.
+ *   * `total_storage`
+ *       * This represents the total number of bytes allocated for additional
+ *         object data storage.
+ *   * `used_storage`
+ *       * This represents the number of bytes of additional object storage
+ *         currently being used.
+ *   * `free_storage`
+ *       * This represents the number of bytes allocated but as-yet unused.
+ *       * Note that this number *may* be higher than expected, as data near the
+ *         end of a page may be left indefinitely "free" if the next allocation is
+ *         larger than the remaining available space.
  */
 mrb_value gc_arena_stats_m(mrb_state *mrb, mrb_value self) {
   struct gc_arena *arena = MRB(mrb_get_datatype)(mrb, self, &gc_arena_data_type);

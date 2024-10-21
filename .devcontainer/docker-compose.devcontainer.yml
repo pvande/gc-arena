@@ -4,6 +4,8 @@ services:
     working_dir: /source
     volumes:
       - ../:/source
+    environment:
+      BUNDLE_GEMFILE: .devcontainer/Gemfile
     command: /bin/sh -c "while sleep 1000; do :; done"
     stdin_open: true
     tty: true

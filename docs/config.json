@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.page/schema.json",
+  "name": "gc-arena",
+  "theme": {
+    "primary": "#da0b50",
+    "primaryDark": "#aa0b30"
+  },
+  "sidebar": [
+    {
+      "pages": [
+        {
+          "title": "Home",
+          "href": "/index"
+        }
+      ]
+    },
+    {
+      "group": "API Docs",
+      "pages": [
+        {
+          "icon": "diagram-project",
+          "group": "Top Level Namespace",
+          "pages": [
+            {
+              "icon": "box-open",
+              "group": "GC",
+              "pages": [
+                {
+                  "icon": "cube",
+                  "title": "Arena",
+                  "href": "GC/Arena"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

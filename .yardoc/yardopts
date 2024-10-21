@@ -1,7 +1,12 @@
---markup markdown
 --db .yardoc/db
+
+--format mdx
+--markup none
+
 --output-dir docs
 --exclude tests
 --exclude include
+
+--tag config:.docs.json
 
 src/gc-*.c

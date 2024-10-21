@@ -29,7 +29,8 @@ endif
 build: build-tests build-debug build-production
 
 docs: src/$(CEXT_NAME).c
-	yard doc --yardopts .yardoc/yardopts
+	bundle exec yard doc --plugin mdx --yardopts .yardoc/yardopts
+	cp docs/config.json docs.json
 
 test: build-tests
 	./build/bin/tests${EXEC_EXTENSION}
